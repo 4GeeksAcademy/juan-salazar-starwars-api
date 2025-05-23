@@ -49,9 +49,7 @@ def get_all_users():
     ]
     return jsonify({"results": all_usuarios}), 200
 
-if __name__ == '__main__':
-    PORT = int(os.environ.get('PORT', 3000))
-    app.run(host='0.0.0.0', port=PORT, debug=False)
+
 
 @app.route('/usuario/<int:user_id>', methods=['GET']) 
 def get_single_user(user_id): 
@@ -183,6 +181,54 @@ def get_single_planet(planet_id):
 
 
 
+
+
+
+
+@app.route('/usuario/<int:user_id>/favoritos', methods=['POST'])
+def add_favorite(user_id):
+    user = Usuario.query.get(user_id)
+    if user is None:
+        raise APIException("Usuario no encontrado", status_code=404)
+
+    body = request.get_json()
+    
+    item_id = body.get('id_unico')
+    item_type = body.get('item_type')
+
+    if not item_id or not item_type:
+        
+        raise APIException("ID Único y Tipo de Item son requeridos", status_code=400)
+
+    valid_types = ['personas', 'vehiculos', 'planetas']
+    if item_type not in valid_types:
+        raise APIException(f"Tipo de item inválido. Debe ser uno de: {', '.join(valid_types)}", status_code=400)
+
+    item_exists = False
+    if item_type == 'personas':
+        item_exists = Personas.query.get(item_id) is not None
+    elif item_type == 'vehiculos':
+        item_exists = Vehiculos.query.get(item_id) is not None
+    elif item_type == 'planetas':
+        item_exists = Planetas.query.get(item_id) is not None
+
+    if not item_exists:
+        
+        raise APIException(f"El {item_type.capitalize()} con ID Único {item_id} no fue encontrado", status_code=404)
+
+    existing_favorite = Favoritos.query.filter_by(usuario_id=user_id, item_id=item_id, item_type=item_type).first()
+    if existing_favorite:
+        raise APIException("El item ya está en favoritos", status_code=409)
+
+    favorite = Favoritos(usuario_id=user_id, item_id=item_id, item_type=item_type)
+    db.session.add(favorite)
+    db.session.commit()
+    return jsonify({"msg": "Favorito añadido exitosamente", "id_unico_agregado": item_id, "tipo_agregado": item_type}), 201
+
+
+
+
+
 @app.route('/usuario/<int:user_id>/favoritos', methods=['GET']) 
 def get_user_favorites(user_id):
     user = Usuario.query.get(user_id) 
@@ -213,43 +259,7 @@ def get_user_favorites(user_id):
     return jsonify(serialized_favorites), 200
 
 
-def add_favorite(user_id):
-    user = Usuario.query.get(user_id) 
-    if user is None:
-        raise APIException("Usuario no encontrado", status_code=404)
-    
-    body = request.get_json()
-    item_id = body.get('item_id')
-    item_type = body.get('item_type')
 
-    if not item_id or not item_type:
-        raise APIException("ID del Item y Tipo de Item son requeridos", status_code=400)
-
-    
-    valid_types = ['person', 'vehicle', 'planet'] 
-    if item_type not in valid_types:
-        raise APIException(f"Tipo de item inválido. Debe ser uno de: {', '.join(valid_types)}", status_code=400)
-
-    item_exists = False
-    if item_type == 'person':
-        item_exists = Personas.query.get(item_id) is not None 
-    elif item_type == 'vehicle':
-        item_exists = Vehiculos.query.get(item_id) is not None 
-    elif item_type == 'planet':
-        item_exists = Planetas.query.get(item_id) is not None 
-
-    if not item_exists:
-        raise APIException(f"El {item_type.capitalize()} con ID {item_id} no fue encontrado", status_code=404)
-
-    
-    existing_favorite = Favoritos.query.filter_by(usuario_id=user_id, item_id=item_id, item_type=item_type).first() 
-    if existing_favorite:
-        raise APIException("El item ya está en favoritos", status_code=409)
-
-    favorite = Favoritos(usuario_id=user_id, item_id=item_id, item_type=item_type) 
-    db.session.add(favorite)
-    db.session.commit()
-    return jsonify({"msg": "Favorito añadido exitosamente"}), 201
 
 
 @app.route('/usuario/<int:user_id>/favoritos/<string:item_type>/<int:item_id>', methods=['DELETE']) 
@@ -265,3 +275,7 @@ def delete_favorite(user_id, item_type, item_id):
     db.session.delete(favorite)
     db.session.commit()
     return jsonify({"msg": "Favorito eliminado exitosamente"}), 200
+
+if __name__ == '__main__':
+    PORT = int(os.environ.get('PORT', 3000))
+    app.run(host='0.0.0.0', port=PORT, debug=False)

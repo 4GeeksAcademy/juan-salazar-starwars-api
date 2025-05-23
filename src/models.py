@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import String, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import ForeignKey
 
 db = SQLAlchemy()
 
@@ -62,6 +63,6 @@ class Planetas(db.Model):
 class Favoritos(db.Model):
     __tablename__ = 'favoritos'
     id: Mapped[int] = mapped_column(primary_key=True)
-    usuario_id: Mapped[int] = mapped_column(nullable=False)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey('usuario.id'), nullable=False)
     item_id: Mapped[int] = mapped_column(nullable=False)
     item_type: Mapped[str] = mapped_column(String(50), nullable=False)
